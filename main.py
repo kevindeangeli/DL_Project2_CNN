@@ -25,6 +25,7 @@ class ConvolutionalLayer():
         self.kernels = []
         self.numberOfNeurons = (input_dimension-kernel_size+1)**2 #### may not need this stored actually.
         self.kernel_size = kernel_size
+        self.outputSize = int(self.numberOfNeurons **.5)
 
 
         if weight is None:
@@ -43,6 +44,7 @@ class ConvolutionalLayer():
 
     def calculate(self, input):
         layerOutput = []
+        total_output = []
         for kernel in self.kernels:
             #kernels are a list of list containing neurons. Each list represents a filter
             i1, j1 = 0,0
@@ -57,14 +59,41 @@ class ConvolutionalLayer():
                 layerOutput.append(neuron.calculate(input[i1:i2,j1:j2]))
                 j2 += 1
                 j1 += 1
-
-        return np.reshape(layerOutput,(self.kernel_size,self.kernel_size))
+            matrix_out_dim = int(len(layerOutput) ** .5) #Given the assumption that matrix is square
+            self.outputSize = matrix_out_dim
+            total_output.append(np.reshape(layerOutput, (matrix_out_dim, matrix_out_dim)))
+        return total_output
 
 
 
 class MaxPoolingLayer():
-    def __int__(self):
-        x=0
+    def __init__(self, kernel_size, input_dimension):
+        self.kernel_size = kernel_size
+        self.input_dimension=input_dimension
+        self.numberOfNeurons = (input_dimension-kernel_size+1)**2 #### may not need this stored actually.
+        self.outputSize = int(self.numberOfNeurons**.5)
+
+    def calculate(self, matrix_list):
+    #input should be a list of matrices:
+        matrixes_output = []
+        individual_outputs = []
+        for matrix in matrix_list:
+            individual_outputs = []
+            i1, j1 = 0, 0
+            i2, j2 = self.kernel_size, self.kernel_size
+            matrix_limit_index = matrix.shape[0] + 1
+            for i in range(self.numberOfNeurons):
+                if j2 == matrix_limit_index:
+                    j2 = self.kernel_size
+                    j1 = 0
+                    i1 += 1
+                    i2 += 1
+                individual_outputs.append(np.max(matrix[i1:i2, j1:j2]))
+                j2 += 1
+                j1 += 1
+            matrixes_output.append(np.reshape(individual_outputs,(self.outputSize,self.outputSize)))
+        return matrixes_output
+
 
 class FlattenLayer():
     def __init__(self):
@@ -90,8 +119,8 @@ class Neuron():
         self.newBias = None
         self.delta = None #individual deltas required for backprop.
 
-
-        self.weights = np.reshape(weights, (weights.shape[0]**2))
+        self.weights  = weights
+        #self.weights = np.reshape(weights, (weights.shape[0]**2))
         self.bias = bias
 
         #this series of if statement define the activation and loss functions, and their derivatives.
@@ -131,11 +160,17 @@ class Neuron():
         Given an input, it will calculate the output
         :return:
         '''
-        newInput = np.reshape(input, (self.weights.shape[0]))
-        self.input = newInput
-        self.output = np.dot(newInput,self.weights) + self.bias #Is this correct ? Yes, right? because max is not affected by bias, since bias is applied to all of them.
+        #newInput = np.reshape(input, (self.weights.shape[0]))
+        self.input = input
+        a = input
+        b = self.weights
+        c = np.multiply(a,b)
+        d = np.sum(c)
+
+        self.output = np.sum(np.multiply(self.input,self.weights)) + self.bias
+        #self.output = np.dot(newInput,self.weights) + self.bias #Is this correct ? Yes, right? because max is not affected by bias, since bias is applied to all of them.
         #self.output = self.activate(np.dot(input,self.weights) + self.bias)
-        return self.output[0]
+        return self.output
 
     #The delta of the last layer is computed a little different, so it has its own function.
     def backpropagationLastLayer(self, target):
@@ -227,9 +262,11 @@ class NeuralNetwork():
         if layer_type == "ConvolutionalLayer":
             layer = ConvolutionalLayer(input_dimension=self.inputList[-1], kernels_number = kernels_number, kernel_size = kernel_size, activation_function = activation_function, learningRate = learning_rate, weight = weights, bias = bias, lossfunc = lossfunc)
             self.layers.append(layer)
-            #need to update the inputList
+            self.inputList.append(layer.outputSize)
         elif layer_type == "MaxPoolingLayer":
-            x=0
+            layer = MaxPoolingLayer(kernel_size = kernel_size, input_dimension = self.inputList[-1])
+            self.layers.append(layer)
+            self.inputList.append(layer.outputSize)
         elif layer_type == "FlattenLayer":
             x=0
         else:
@@ -348,6 +385,7 @@ def doExample():
 def main():
     input = np.array([[1, 1, 1, 0, 0], [0, 1, 1, 1, 0], [0, 0, 1, 1, 1], [0, 0, 1, 1, 0], [0, 1, 1, 0, 0]])
     weights = np.array([[1,0,1], [0,1,0], [1,0,1]])
+    weights2 = np.array([[1,1],[0,1]])
     bias = [0]
     print("Input: ")
     print(input)
@@ -355,10 +393,28 @@ def main():
     print(weights)
     print(" ")
 
+    layer_options  = ["ConvolutionalLayer", "MaxPoolingLayer", "FlattenLayer"]
+
     #Problem X: kernel_size not required if weights is given
     model = NeuralNetwork(inputSize=5, learningRate=0.1, lossFunction="mse")
-    model.addLayer(layer_type="ConvolutionalLayer",kernels_number=1, kernel_size= 3,learning_rate =0.1, weights = weights, bias = bias, activation_function="sigmoid", lossfunc = "mse" )
-    print(model.calculate(input))
+    model.addLayer(layer_type=layer_options[0],kernels_number=1, kernel_size= 2,learning_rate =0.1, weights = weights2, bias = bias, activation_function="sigmoid", lossfunc = "mse" )
+
+    print("Output 1: ")
+    print(model.layers[0].calculate(input))
+    out=model.layers[0].calculate(input)
+
+    print("Output 2: ")
+    model.addLayer(layer_type=layer_options[1],kernel_size= 2)
+    print(model.layers[1].calculate(out))
+
+
+
+    model.addLayer(layer_type=layer_options[1],kernel_size= 2)
+
+
+
+
+    #model.addLayer(layer_type=layer_options[1], kernel_size=)
 
     # program_name = sys.argv[0]
     # input = sys.argv[1:] #Get input from the console.
