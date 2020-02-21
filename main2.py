@@ -17,6 +17,8 @@ import numpy as np
 import sys
 import matplotlib.pyplot as plt
 
+layer_options = ["ConvolutionalLayer", "MaxPoolingLayer", "FlattenLayer", "Dense"]
+
 
 class ConvolutionalLayer():
     def __init__(self, input_dimension, kernels_number = 1, kernel_size = 2, activation_function = "sigmoid", learningRate=0.1, weight = None, bias= None, lossfunc = "mse"):
@@ -38,11 +40,12 @@ class ConvolutionalLayer():
                 newKernel = [Neuron(inputLen=input_dimension, activationFun=activation_function,lossFunction=lossfunc ,learningRate=learningRate, weights=weight, bias = bias) for i in range(self.numberOfNeurons)]
                 self.kernels.append(newKernel)
         else:
-            for i in range(kernels_number):
-                newKernel = [Neuron(inputLen=input_dimension, activationFun=activation_function,lossFunction=lossfunc ,learningRate=learningRate, weights=weight, bias = bias) for i in range(self.numberOfNeurons)]
+            for index in range(kernels_number):
+                newKernel = [Neuron(inputLen=input_dimension, activationFun=activation_function,lossFunction=lossfunc ,learningRate=learningRate, weights=weight[index], bias = bias[index]) for i in range(self.numberOfNeurons)]
                 self.kernels.append(newKernel)
 
     def calculate(self, input):
+        input = np.array(input)
         layerOutput = []
         total_output = []
         for kernel in self.kernels:
@@ -268,7 +271,7 @@ class NeuralNetwork():
 
     def addLayer(self, layer_type, weights = None, bias = None,kernels_number=1, kernel_size= 2, activation_function="sigmoid", learning_rate =0.1, lossfunc = "mse", numOfNeurons= None ):
         if layer_type == "ConvolutionalLayer":
-            layer = ConvolutionalLayer(input_dimension=self.inputList[-1], kernels_number = kernels_number, kernel_size = kernel_size, activation_function = activation_function, learningRate = learning_rate, weight = weights, bias = bias, lossfunc = lossfunc)
+            layer = ConvolutionalLayer(input_dimension=self.inputList[-1], kernels_number = kernels_number, kernel_size = kernel_size, activation_function = activation_function, learningRate = self.learningRate, weight = weights, bias = bias, lossfunc = lossfunc)
             self.layers.append(layer)
             self.inputList.append(layer.outputSize)
         elif layer_type == "MaxPoolingLayer":
@@ -281,15 +284,13 @@ class NeuralNetwork():
             self.inputList.append(layer.outputSize)
             #output = (1, K) <-- index 1 is the number of neuron that goes into the dense layer.
         elif layer_type == "Dense":
-            layer = FullyConnectedLayer(inputLen=self.inputList[-1][1], numOfNeurons = numOfNeurons, activationFun = "sigmoid", lossFunction= "mse", learningRate = learning_rate, weights = weights, bias = bias,activation=True)
+            layer = FullyConnectedLayer(inputLen=self.inputList[-1][1], numOfNeurons = numOfNeurons, activationFun = "sigmoid", lossFunction= "mse", learningRate = self.learningRate, weights = weights, bias = bias,activation=True)
             self.layers.append(layer)
             self.inputList.append(layer.outputSize[1])
             #outputSize  = (1,K)
         else:
             print("addLayer only accepts three types: ConvolutionalLayer,MaxPoolingLayer, or FlattenLayer ")
             return 0
-
-
 
 
     def showWeights(self):
@@ -338,21 +339,6 @@ class NeuralNetwork():
 
 
 
-    def calculateLoss(self,input,target, function = "mse"):
-        '''
-        Given an input and desired output, calculate the loss.
-        Can be implemented with MSE and binary cross.
-        '''
-        N = len(input)
-        output = self.calculate(input)
-        if function == "mse":
-            error = mse(output, target)
-        else:
-            crossEntropy(output, target)
-
-        return error
-
-
     def train(self, input, target, showLoss = False):
         '''
         Basically, do forward and backpropagation all together here.
@@ -365,46 +351,102 @@ class NeuralNetwork():
         self.backPropagate(target)
 
 
-def doExample():
+def doExample1():
     '''
     This function does the "Example" forward and backpop pass required for the assignemnt.
     '''
-    print( "--- Example ---")
+    print( "--- Example 1---")
+    # layer_options  = ["ConvolutionalLayer", "MaxPoolingLayer", "FlattenLayer", "Dense"]
 
-    #Let's try the class example by setting the bias and weights:
-    Newweights = [[[.15,.20], [.25, .30]], [[.40, .45], [.5, .55]]]
-    newBias = [[.35,.35],[.6,.6]]
-    model = NeuralNetwork(neuronsNum=[2, 2, 2], activationVector=['sigmoid', 'sigmoid'], lossFunction="mse",
-                          learningRate=.5, weights=Newweights, bias = newBias)
-
-
-    print("Original weights and biases of the network: ")
-    print("Model's Weights:")
-    model.showWeights()
-    print("\nModel's Bias:")
-    model.showBias()
-
-
-    print("\nForward pass: ")
-    print(model.calculate([.05,.1]))
-
-    #model.train(input= [.05,.1], target=[.01, .99]) #you could use just this function to do all at once.
-    model.backPropagate(target= [.01, .99])
-    print("\nAfter BackProp, the updated weights are:")
-    print("Model's Weights:")
-    model.showWeights()
-    print("\nModel's Bias:")
-    model.showBias()
+    input = np.array([[1, 1, 1, 0, 0], [0, 1, 1, 1, 0], [0, 0, 1, 1, 1], [0, 0, 1, 1, 0], [0, 1, 1, 0, 0]])
+    weights3 = np.array([[[.1,.8,.2], [1,.1,0.5], [.4,.5,.7]]])
+    bias3 = [.9]
+    model = NeuralNetwork(inputSize=input.shape, learningRate=0.5, lossFunction="mse")
+    model.addLayer(layer_type=layer_options[0],kernels_number=1, kernel_size= 3, weights = weights3, bias = bias3, activation_function="sigmoid", lossfunc = "mse" )
+    model.addLayer(layer_type=layer_options[2])
+    Newweights = [[[0.89286015,0.33197981,0.82122912,0.04169663,0.10765668,0.59505206,0.52981736,0.41880743,0.33540785]]]
+    newBias = [[0.62251943]]
+    model.addLayer(layer_type=layer_options[3], numOfNeurons=1, weights = Newweights, bias = newBias)
+    print("Network Output: ", model.calculate(input))
 
 
+def doExample2():
+    '''
+    This function does the "Example" forward and backpop pass required for the assignemnt.
+    '''
+    print( "--- Example 2---")
+    # layer_options  = ["ConvolutionalLayer", "MaxPoolingLayer", "FlattenLayer", "Dense"]
 
-def main():
+    input = np.array([[1, 1, 1, 0, 0], [0, 1, 1, 1, 0], [0, 0, 1, 1, 1], [0, 0, 1, 1, 0], [0, 1, 1, 0, 0]])
+    weights3 = np.array([[[.1,.8,.2], [1,.1,0.5], [.4,.5,.7]]])
+    bias3 = [.9]
+    model = NeuralNetwork(inputSize=input.shape, learningRate=0.5, lossFunction="mse")
+    model.addLayer(layer_type=layer_options[0],kernels_number=1, kernel_size= 3, weights = weights3, bias = bias3, activation_function="sigmoid", lossfunc = "mse" )
+    print("Output 1 (Cov): ")
+    weights3 = np.array([[[.1,.8,.2], [1,.1,0.5], [.4,.5,.7]]])
+    model.addLayer(layer_type=layer_options[0],kernels_number=1, kernel_size= 3, weights = weights3, bias = bias3, activation_function="sigmoid", lossfunc = "mse" )
+
+
+    model.addLayer(layer_type=layer_options[2])
+
+    Newweights = [[[0.89286015]]]
+    newBias = [[0.33197981]]
+    model.addLayer(layer_type=layer_options[3], numOfNeurons=1, weights = Newweights, bias = newBias)
+    print("Network Output: ", model.calculate(input))
+
+
+def doExample3():
+    input = np.array(
+        [[1, 1, 1, 0, 0, 1], [0, 1, 1, 1, 0, 1], [1, 0, 0, 1, 1, 1], [1, 0, 0, 1, 1, 0], [1, 0, 1, 1, 0, 0],[0, 1, 0, 1, 0, 1]])
+
+    weights3 = np.array([[.5,.5,.5], [.5,.5,.5], [.5,.5,.5],[-.5,-.5,-.5], [-.5,-.5,-.5], [-.5,-.5,-.5]])
+    bias3 = [1,-1]
+
+    print("Input: ")
+    print(input)
+    print("Weights: ")
+    print(weights3)
+    print(" ")
+
+    #layer_options  = ["ConvolutionalLayer", "MaxPoolingLayer", "FlattenLayer", "Dense"]
+
+    model = NeuralNetwork(inputSize=input.shape, learningRate=0.5, lossFunction="mse")
+
+    #Pre-Defined weights:
+    model.addLayer(layer_type=layer_options[0],kernels_number=2, kernel_size= 3, weights = weights3, bias = bias3, activation_function="sigmoid", lossfunc = "mse" )
+
+    print("Output 1 (Cov): ")
+    out=model.layers[0].calculate(input)
+    print(out)
+
+    model.addLayer(layer_type=layer_options[1],kernel_size= 2)
+    print("Output 2 (MaxP): ")
+    out = model.layers[1].calculate(out)
+    print(out)
+
+    model.addLayer(layer_type=layer_options[2])
+    print("Output 3 (Flatt): ")
+    out = model.layers[2].calculate(out)
+    print(out)
+
+
+    Newweights = [[[0.9670298,0.5472323,0.9726844,0.714816]]]
+    newBias = [[0.6977288]]
+
+    model.addLayer(layer_type=layer_options[3], numOfNeurons=1, weights = Newweights, bias = newBias, learning_rate=.5)
+    print("Output 4: (Dense)")
+    out = model.layers[3].calculate(out)
+    print(out)
+
+
+
+def DoEntireThing():
     input = np.array([[1, 1, 1, 0, 0], [0, 1, 1, 1, 0], [0, 0, 1, 1, 1], [0, 0, 1, 1, 0], [0, 1, 1, 0, 0]])
     weights = np.array([[1,0,1], [0,1,0], [1,0,1]])
     weights2 = np.array([[1,1],[0,1]])
 
     weights3 = np.array([[.1,.8,.2], [1,.001,0.005], [.4,.5,.7]])
-    bias3 = .9
+    bias3 = [.9]
 
 
     bias = [0]
@@ -419,65 +461,44 @@ def main():
     model = NeuralNetwork(inputSize=input.shape, learningRate=0.1, lossFunction="mse")
 
     #Pre-Defined weights:
-    model.addLayer(layer_type=layer_options[0],kernels_number=1, kernel_size= 3,learning_rate =0.1, weights = weights3, bias = bias3, activation_function="sigmoid", lossfunc = "mse" )
+    model.addLayer(layer_type=layer_options[0],kernels_number=1, kernel_size= 3, weights = weights3, bias = bias3, activation_function="sigmoid", lossfunc = "mse" )
     #Random:
     #model.addLayer(layer_type=layer_options[0],kernels_number=1, kernel_size= 4,learning_rate =0.1, weights = None, bias = None, activation_function="sigmoid", lossfunc = "mse" )
 
-    print("Output 1: ")
+    print("Output 1 (Cov): ")
     out=model.layers[0].calculate(input)
     print(out)
 
     model.addLayer(layer_type=layer_options[1],kernel_size= 2)
-    print("Output 2: ")
+    print("Output 2 (MaxP): ")
     out = model.layers[1].calculate(out)
     print(out)
 
     model.addLayer(layer_type=layer_options[2])
-    print("Output 3: ")
+    print("Output 3 (Flatt): ")
     out = model.layers[2].calculate(out)
     print(out)
-
 
 
     Newweights = [[[0.9670298,0.5472323,0.9726844,0.714816]]]
     newBias = [[0.6977288]]
 
     model.addLayer(layer_type=layer_options[3], numOfNeurons=1, weights = Newweights, bias = newBias, learning_rate=.5)
-    print("Output 4: ")
+    print("Output 4: (Dense)")
     out = model.layers[3].calculate(out)
     print(out)
 
+    #model.train(input=input, target=3)
 
 
 
+def main():
+    #doExample1()
+    #doExample2()
+
+    doExample3()
 
 if __name__ == "__main__":
     main()
 
 
-    # program_name = sys.argv[0]
-    # input = sys.argv[1:] #Get input from the console.
-    # # Input validation:
-    # if len(input) != 1:
-    #     print("Input only one of these: example, and, or xor")
-    #     return 0
-
-    # This is just to run it from the editor instead of the console.
-    #input = ["example", "and", "xor","lossLearning", "lossEpoch"]
-    #input = [input[3]]
-
-    # if input[0] == "example":
-    #     doExample()
-    # elif input[0] == "and":
-    #     doAnd()
-    # elif input[0] == "xor":
-    #     doXor()
-    # elif input[0] == "lossLearning":
-    #     learningRateArr = np.linspace(0.1, 12, num=50)
-    #     showLoss(learningRateArr, data="and")
-    # elif input[0] == "lossEpoch":
-    #     lossVSEpoch(data="and")
-    # else:
-    #     # Input validation
-    #     print("Input Options: example, and, or xor")
-    #     return 0
