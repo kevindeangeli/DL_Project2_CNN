@@ -18,9 +18,11 @@ def crossEntropy_prime(prediction, output):
 
 def mse(prediction, output):
     if len(prediction) == 1:
-        return (prediction[0]-output[0])**2
+        return .5((prediction[0]-output[0])**2)
     else:
-        return ((prediction - output)**2).mean(axis=0)
+        #return ((prediction - output)**2).mean(axis=0)
+        return (.5((prediction - output) ** 2)).mean(axis=0)
+
 
 def mse_prime(output, target):
     return output-target
